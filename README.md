@@ -2,20 +2,11 @@
 
 Сервис для публикации рецептов. Позволяет пользователям публиковать рецепты, подписываться на публикации других пользователей, добавлять понравившиеся рецепты в список «Избранное», а перед походом в магазин скачивать сводный список продуктов, необходимых для приготовления одного или нескольких выбранных блюд.
 
-## Разработка
-
-### Требования
-
-- Python 3.9+
-- Django 4.2
-- Docker
-- Docker Compose
-
 ### Настройка окружения
 
 1. Клонируйте репозиторий:
 ```bash
-git clone https://github.com/your-username/foodgram-project.git
+git clone https://github.com/zhegloova/foodgram-project.git
 cd foodgram-project
 ```
 
@@ -33,14 +24,6 @@ DB_USER=foodgram_user
 DB_PASSWORD=your-password
 DB_HOST=db
 DB_PORT=5432
-
-# Email settings (опционально)
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
 ```
 
 ### Запуск проекта
@@ -50,63 +33,24 @@ EMAIL_HOST_PASSWORD=your-app-password
 docker-compose up -d --build
 ```
 
-2. Примените миграции:
-```bash
-docker-compose exec backend python manage.py migrate
-```
-
-3. Создайте суперпользователя:
-```bash
-docker-compose exec backend python manage.py createsuperuser
-```
-
-4. Загрузите начальные данные (ингредиенты):
-```bash
-docker-compose exec backend python manage.py import_ingredients
-```
 
 ### Тестовые пользователи
 
-После запуска проекта вы можете использовать следующие тестовые учетные записи:
+После запуска проекта вы можете использовать postman_collection
 
-1. Администратор:
-- Email: admin@foodgram.com
-- Пароль: admin
+После прогона коллекции выполните:
+```bash
+docker-compose down -v
+```
 
-2. Тестовый пользователь:
-- Email: user@foodgram.com
-- Пароль: user12345
-
-Или создайте нового пользователя через API или административный интерфейс.
 
 ### API Documentation
 
 API документация (OpenAPI/Swagger) доступна по следующим URL:
 - `http://localhost:8000/api/docs/` - Swagger UI
-- `http://localhost:8000/api/docs/redoc/` - ReDoc
 
-### Разработка
-
-1. Запуск сервера для разработки:
-```bash
-python manage.py runserver
-```
-
-2. Запуск тестов:
-```bash
-python manage.py test
-```
-
-3. Проверка кода:
-```bash
-flake8 .
-black .
-isort .
-```
 
 ### API Endpoints
-
-Основные эндпоинты API:
 
 - `/api/users/` - управление пользователями
 - `/api/recipes/` - управление рецептами
@@ -115,24 +59,5 @@ isort .
 
 Полный список эндпоинтов и их описание доступны в документации API.
 
-### Дополнительные команды
 
-1. Создание новых миграций:
-```bash
-python manage.py makemigrations
-```
-
-2. Сброс базы данных:
-```bash
-python manage.py flush
-```
-
-3. Сбор статических файлов:
-```bash
-python manage.py collectstatic
-```
-
-## Лицензия
-
-Этот проект лицензирован под MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
