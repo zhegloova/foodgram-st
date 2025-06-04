@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Subscription
+
+from .models import Subscription, User
 
 
 @admin.register(User)
@@ -13,8 +14,7 @@ class CustomUserAdmin(UserAdmin):
         'last_name',
         'avatar'
     )
-    list_filter = ('email', 'username')
-    search_fields = ('username', 'email')
+    search_fields = ('username', 'email', 'first_name', 'last_name')
 
 
 @admin.register(Subscription)

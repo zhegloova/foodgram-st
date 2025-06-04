@@ -1,6 +1,6 @@
-from django.db import models
-from django.core.validators import MinValueValidator
 from django.contrib.auth import get_user_model
+from django.core.validators import MinValueValidator
+from django.db import models
 from django.urls import reverse
 
 User = get_user_model()
@@ -11,7 +11,6 @@ class Ingredient(models.Model):
     measurement_unit = models.CharField('Measurement unit', max_length=64)
 
     class Meta:
-        ordering = ['name']
         verbose_name = 'Ingredient'
         verbose_name_plural = 'Ingredients'
 
@@ -45,6 +44,14 @@ class Recipe(models.Model):
     pub_date = models.DateTimeField(
         'Publication date',
         auto_now_add=True,
+        db_index=True
+    )
+    short_id = models.CharField(
+        'Short ID',
+        max_length=10,
+        unique=True,
+        null=True,
+        blank=True,
         db_index=True
     )
 

@@ -1,9 +1,10 @@
 from django_filters import rest_framework as filters
-from .models import Recipe, Ingredient
+
+from .models import Ingredient, Recipe
 
 
 class IngredientFilter(filters.FilterSet):
-    name = filters.CharFilter(lookup_expr='istartswith')
+    name = filters.CharFilter(field_name='name', lookup_expr='istartswith')
 
     class Meta:
         model = Ingredient
@@ -17,18 +18,20 @@ class RecipeFilter(filters.FilterSet):
     )
     author = filters.NumberFilter(field_name='author__id')
 
-    def get_favorited_filter(self, queryset, filter_value):
+    def get_favorited_filter(self, queryset, name, value):
         current_user = self.request.user
-        if filter_value and not current_user.is_anonymous:
+        if value and not current_user.is_anonymous:
             return queryset.filter(favorited_by__user=current_user)
         return queryset
 
-    def get_shopping_cart_filter(self, queryset, filter_value):
+    def get_shopping_cart_filter(self, queryset, name, value):
         current_user = self.request.user
-        if filter_value and not current_user.is_anonymous:
+        if value and not current_user.is_anonymous:
             return queryset.filter(in_shopping_carts__user=current_user)
         return queryset
 
     class Meta:
         model = Recipe
         fields = ('author', 'is_favorited', 'is_in_shopping_cart')
+
+

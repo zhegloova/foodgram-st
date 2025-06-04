@@ -1,30 +1,31 @@
 import hashlib
+
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Recipe, Ingredient, Favorite, ShoppingCart
-from .serializers import (
-    RecipeListSerializer,
-    RecipeCreateUpdateSerializer,
-    IngredientSerializer,
-    RecipeMinifiedSerializer
-)
-from .filters import RecipeFilter, IngredientFilter
-from .permissions import IsAuthorOrReadOnly
-from .mixins import RecipeCollectionMixin
+from recipes.filters import IngredientFilter, RecipeFilter
+from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart
+from recipes.permissions import IsAuthorOrReadOnly
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from ..serializers.recipe import (IngredientSerializer,
+                                  RecipeCreateUpdateSerializer,
+                                  RecipeListSerializer,
+                                  RecipeMinifiedSerializer)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Ingredient viewset. Read-only access for all users.
+    Provides filtered and ordered list of ingredients.
     """
-    queryset = Ingredient.objects.all()
+    
+    queryset = Ingredient.objects.all().order_by('name')
     serializer_class = IngredientSerializer
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
@@ -32,8 +33,13 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
-class RecipeViewSet(RecipeCollectionMixin, viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
+class RecipeViewSet(viewsets.ModelViewSet):
+    queryset = (Recipe.objects.select_related('author')
+               .prefetch_related(
+                   'recipe_ingredients__ingredient',
+                   'favorited_by',
+                   'in_shopping_carts'
+               ))
     permission_classes = (IsAuthorOrReadOnly,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
@@ -52,6 +58,29 @@ class RecipeViewSet(RecipeCollectionMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    def handle_collection(self, request, pk, collection_class, messages):
+        recipe = get_object_or_404(Recipe, id=pk)
+        
+        if request.method == 'POST':
+            if collection_class.objects.filter(user=request.user, recipe=recipe).exists():
+                return Response(
+                    {'errors': messages['exists']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            collection_class.objects.create(user=request.user, recipe=recipe)
+            serializer = RecipeMinifiedSerializer(recipe)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        if request.method == 'DELETE':
+            obj = collection_class.objects.filter(user=request.user, recipe=recipe)
+            if not obj.exists():
+                return Response(
+                    {'errors': messages['not_found']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            obj.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=True,
@@ -85,6 +114,16 @@ class RecipeViewSet(RecipeCollectionMixin, viewsets.ModelViewSet):
             }
         )
 
+    def generate_shopping_list(self, ingredients):
+        shopping_list = ['Shopping List:\n\n']
+        for item in ingredients:
+            shopping_list.append(
+                f"- {item['recipe__recipe_ingredients__ingredient__name']} "
+                f"({item['recipe__recipe_ingredients__ingredient__measurement_unit']}) "
+                f"- {item['total']}\n"
+            )
+        return ''.join(shopping_list)
+
     @action(
         detail=False,
         permission_classes=[IsAuthenticated]
@@ -97,16 +136,10 @@ class RecipeViewSet(RecipeCollectionMixin, viewsets.ModelViewSet):
             total=Sum('recipe__recipe_ingredients__amount')
         ).order_by('recipe__recipe_ingredients__ingredient__name')
 
-        shopping_list = ['Shopping List:\n\n']
-        for item in ingredients:
-            shopping_list.append(
-                f"- {item['recipe__recipe_ingredients__ingredient__name']} "
-                f"({item['recipe__recipe_ingredients__ingredient__measurement_unit']}) "
-                f"- {item['total']}\n"
-            )
-
+        shopping_list_text = self.generate_shopping_list(ingredients)
+        
         response = HttpResponse(
-            ''.join(shopping_list),
+            shopping_list_text,
             content_type='text/plain'
         )
         response['Content-Disposition'] = (
@@ -122,20 +155,12 @@ class RecipeViewSet(RecipeCollectionMixin, viewsets.ModelViewSet):
     )
     def get_link(self, request, pk):
         recipe = get_object_or_404(Recipe, id=pk)
-        hash_object = hashlib.sha1(str(recipe.id).encode())
-        short_hash = hash_object.hexdigest()[:3]
         short_url = request.build_absolute_uri(
-            reverse('recipes:recipe-short-link', args=[short_hash])
+            reverse('recipes:recipe-short-link', args=[recipe.short_id])
         )
         return Response({'short-link': short_url})
 
     def get_by_short_link(self, request, short_hash):
-        for recipe in Recipe.objects.all():
-            hash_object = hashlib.sha1(str(recipe.id).encode())
-            if hash_object.hexdigest()[:3] == short_hash:
-                serializer = self.get_serializer(recipe)
-                return Response(serializer.data)
-        return Response(
-            {'error': 'Recipe not found'},
-            status=status.HTTP_404_NOT_FOUND
-        ) 
+        recipe = get_object_or_404(Recipe, short_id=short_hash)
+        serializer = self.get_serializer(recipe)
+        return Response(serializer.data) 

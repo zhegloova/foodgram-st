@@ -1,6 +1,8 @@
 import csv
+
 from django.core.management.base import BaseCommand
 from recipes.models import Ingredient
+
 
 class Command(BaseCommand):
     help = 'Import ingredients from CSV file'
@@ -20,14 +22,24 @@ class Command(BaseCommand):
             return
 
         try:
+            ingredients_to_create = []
             with open(file_path, encoding='utf-8') as file:
                 reader = csv.reader(file)
                 for row in reader:
                     name, measurement_unit = row
-                    Ingredient.objects.create(
-                        name=name.strip(),
-                        measurement_unit=measurement_unit.strip()
+                    ingredients_to_create.append(
+                        Ingredient(
+                            name=name.strip(),
+                            measurement_unit=measurement_unit.strip()
+                        )
                     )
+            
+            # Создаем все ингредиенты одним запросом
+            Ingredient.objects.bulk_create(
+                ingredients_to_create,
+                batch_size=100  # Оптимальный размер пакета для PostgreSQL
+            )
+            
             self.stdout.write(
                 self.style.SUCCESS(
                     f'Ingredients successfully imported from {file_path}'

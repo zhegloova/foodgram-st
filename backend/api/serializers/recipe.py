@@ -1,13 +1,10 @@
+from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
+                            ShoppingCart)
 from rest_framework import serializers
-from users.serializers import CustomUserSerializer
-from common.fields import Base64ImageField
-from .models import (
-    Recipe,
-    Ingredient,
-    IngredientInRecipe,
-    Favorite,
-    ShoppingCart
-)
+
+from ..fields import Base64ImageField
+from .user import CustomUserSerializer
+
 
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
@@ -96,13 +93,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             'cooking_time'
         )
 
-    def validate(self, attrs):
-        if self.instance and 'ingredients' not in attrs:
-            raise serializers.ValidationError({
-                'ingredients': 'This field is required.'
-            })
-        return super().validate(attrs)
-
     def validate_ingredients(self, value):
         if not value:
             raise serializers.ValidationError(
@@ -115,12 +105,13 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'Ingredient ID is required'
                 )
-            try:
-                ingredient = Ingredient.objects.get(id=ingredient_id)
-            except Ingredient.DoesNotExist:
+            
+            if not Ingredient.objects.filter(id=ingredient_id).exists():
                 raise serializers.ValidationError(
                     f'Ingredient with id {ingredient_id} does not exist'
                 )
+            
+            ingredient = Ingredient.objects.get(id=ingredient_id)
             if ingredient in ingredient_list:
                 raise serializers.ValidationError(
                     'Ingredients must be unique'
@@ -134,18 +125,14 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def create_ingredients(self, recipe, ingredients):
-        ingredient_list = []
-        for item in ingredients:
-            ingredient = Ingredient.objects.get(id=item['id'])
-            amount = item['amount']
-            ingredient_list.append(
-                IngredientInRecipe(
-                    recipe=recipe,
-                    ingredient=ingredient,
-                    amount=amount
-                )
+        IngredientInRecipe.objects.bulk_create([
+            IngredientInRecipe(
+                recipe=recipe,
+                ingredient_id=item['id'],
+                amount=int(item['amount'])
             )
-        IngredientInRecipe.objects.bulk_create(ingredient_list)
+            for item in ingredients
+        ])
 
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
