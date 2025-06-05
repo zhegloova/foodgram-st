@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'api.apps.ApiConfig',
 ]
 
-ROOT_URLCONF = 'foodgram.urls'
+ROOT_URLCONF = 'api.urls'
 
 WSGI_APPLICATION = 'foodgram.wsgi.application'
 

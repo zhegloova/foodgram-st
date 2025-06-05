@@ -4,7 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from users.models import Subscription, User
 
-from .serializers.user import SubscriptionSerializer
+from .serializers.user import (SubscriptionCreateSerializer,
+                               SubscriptionSerializer)
 
 
 class SubscriptionMixin:
@@ -14,33 +15,30 @@ class SubscriptionMixin:
     )
     def subscribe(self, request, id=None):
         user = request.user
-        author = get_object_or_404(User, id=id)
 
         if request.method == 'POST':
-            if user == author:
-                return Response(
-                    {'errors': 'You cannot subscribe to yourself'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if Subscription.objects.filter(user=user, author=author).exists():
-                return Response(
-                    {'errors': 'You are already subscribed to this user'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            subscription = Subscription.objects.create(user=user, author=author)
+            author = get_object_or_404(User, id=id)
+            serializer = SubscriptionCreateSerializer(
+                data={'author': author.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
             serializer = SubscriptionSerializer(
                 author,
                 context={'request': request}
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        subscription = Subscription.objects.filter(user=user, author=author)
-        if not subscription.exists():
+        deleted_count = Subscription.objects.filter(
+            user=user,
+            author_id=id
+        ).delete()[0]
+        if not deleted_count:
             return Response(
                 {'errors': 'You are not subscribed to this user'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -56,4 +54,4 @@ class SubscriptionMixin:
             many=True,
             context={'request': request}
         )
-        return self.get_paginated_response(serializer.data) 
+        return self.get_paginated_response(serializer.data)

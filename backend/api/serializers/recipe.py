@@ -1,8 +1,8 @@
+from common.fields import Base64ImageField
 from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
                             ShoppingCart)
 from rest_framework import serializers
 
-from ..fields import Base64ImageField
 from .user import CustomUserSerializer
 
 
@@ -10,6 +10,7 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
+        search_fields = ("name",)
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
@@ -141,10 +142,9 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
-        if 'ingredients' in validated_data:
-            ingredients = validated_data.pop('ingredients')
-            instance.recipe_ingredients.all().delete()
-            self.create_ingredients(instance, ingredients)
+        ingredients = validated_data.pop('ingredients')
+        instance.recipe_ingredients.delete()
+        self.create_ingredients(instance, ingredients)
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
@@ -152,6 +152,42 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             instance,
             context=self.context
         ).data
+
+
+class FavoriteCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ('recipe',)
+
+    def validate_recipe(self, value):
+        user = self.context['request'].user
+        if Favorite.objects.filter(user=user, recipe=value).exists():
+            raise serializers.ValidationError(
+                'Recipe is already in favorites'
+            )
+        return value
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class ShoppingCartCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShoppingCart
+        fields = ('recipe',)
+
+    def validate_recipe(self, value):
+        user = self.context['request'].user
+        if ShoppingCart.objects.filter(user=user, recipe=value).exists():
+            raise serializers.ValidationError(
+                'Recipe is already in shopping cart'
+            )
+        return value
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
 
 
 class RecipeMinifiedSerializer(serializers.ModelSerializer):

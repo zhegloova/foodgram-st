@@ -34,10 +34,9 @@ class Command(BaseCommand):
                         )
                     )
             
-            # Создаем все ингредиенты одним запросом
             Ingredient.objects.bulk_create(
                 ingredients_to_create,
-                batch_size=100  # Оптимальный размер пакета для PostgreSQL
+                batch_size=100
             )
             
             self.stdout.write(

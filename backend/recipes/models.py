@@ -7,12 +7,20 @@ User = get_user_model()
 
 
 class Ingredient(models.Model):
-    name = models.CharField('Name', max_length=128)
-    measurement_unit = models.CharField('Measurement unit', max_length=64)
+    name = models.CharField(
+        verbose_name='ingredient name',
+        help_text='Name of the ingredient',
+        max_length=128
+    )
+    measurement_unit = models.CharField(
+        verbose_name='measurement unit',
+        help_text='Unit of measurement (e.g., g, ml, piece)',
+        max_length=64
+    )
 
     class Meta:
-        verbose_name = 'Ingredient'
-        verbose_name_plural = 'Ingredients'
+        verbose_name = 'ingredient'
+        verbose_name_plural = 'ingredients'
 
     def __str__(self):
         return f'{self.name}, {self.measurement_unit}'
@@ -21,33 +29,46 @@ class Ingredient(models.Model):
 class Recipe(models.Model):
     author = models.ForeignKey(
         User,
+        verbose_name='recipe author',
+        help_text='User who created the recipe',
         on_delete=models.CASCADE,
-        related_name='recipes',
-        verbose_name='Author'
+        related_name='recipes'
     )
-    name = models.CharField('Name', max_length=256)
+    name = models.CharField(
+        verbose_name='recipe name',
+        help_text='Name of the recipe',
+        max_length=256
+    )
     image = models.ImageField(
-        'Image',
+        verbose_name='recipe image',
+        help_text='Image of the prepared dish',
         upload_to='recipes/images/'
     )
-    text = models.TextField('Description')
+    text = models.TextField(
+        verbose_name='recipe description',
+        help_text='Recipe preparation instructions'
+    )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='IngredientInRecipe',
         related_name='recipes',
-        verbose_name='Ingredients'
+        verbose_name='ingredients',
+        help_text='Ingredients used in the recipe'
     )
     cooking_time = models.PositiveSmallIntegerField(
-        'Cooking time (minutes)',
+        verbose_name='cooking time',
+        help_text='Cooking time in minutes',
         validators=[MinValueValidator(1)]
     )
     pub_date = models.DateTimeField(
-        'Publication date',
+        verbose_name='publication date',
+        help_text='Date and time when the recipe was published',
         auto_now_add=True,
         db_index=True
     )
     short_id = models.CharField(
-        'Short ID',
+        verbose_name='short ID',
+        help_text='Short identifier for sharing',
         max_length=10,
         unique=True,
         null=True,
@@ -57,8 +78,8 @@ class Recipe(models.Model):
 
     class Meta:
         ordering = ['-pub_date']
-        verbose_name = 'Recipe'
-        verbose_name_plural = 'Recipes'
+        verbose_name = 'recipe'
+        verbose_name_plural = 'recipes'
 
     def __str__(self):
         return self.name
@@ -70,23 +91,26 @@ class Recipe(models.Model):
 class IngredientInRecipe(models.Model):
     recipe = models.ForeignKey(
         Recipe,
+        verbose_name='recipe',
+        help_text='Recipe that uses this ingredient',
         on_delete=models.CASCADE,
-        related_name='recipe_ingredients',
-        verbose_name='Recipe'
+        related_name='recipe_ingredients'
     )
     ingredient = models.ForeignKey(
         Ingredient,
-        on_delete=models.CASCADE,
-        verbose_name='Ingredient'
+        verbose_name='ingredient',
+        help_text='Ingredient used in the recipe',
+        on_delete=models.CASCADE
     )
     amount = models.PositiveSmallIntegerField(
-        'Amount',
+        verbose_name='amount',
+        help_text='Amount of ingredient needed',
         validators=[MinValueValidator(1)]
     )
 
     class Meta:
-        verbose_name = 'Ingredient in recipe'
-        verbose_name_plural = 'Ingredients in recipe'
+        verbose_name = 'ingredient in recipe'
+        verbose_name_plural = 'ingredients in recipe'
         constraints = [
             models.UniqueConstraint(
                 fields=['recipe', 'ingredient'],
@@ -101,20 +125,22 @@ class IngredientInRecipe(models.Model):
 class Favorite(models.Model):
     user = models.ForeignKey(
         User,
+        verbose_name='user',
+        help_text='User who favorited the recipe',
         on_delete=models.CASCADE,
-        related_name='favorites',
-        verbose_name='User'
+        related_name='favorites'
     )
     recipe = models.ForeignKey(
         Recipe,
+        verbose_name='recipe',
+        help_text='Favorited recipe',
         on_delete=models.CASCADE,
-        related_name='favorited_by',
-        verbose_name='Recipe'
+        related_name='favorited_by'
     )
 
     class Meta:
-        verbose_name = 'Favorite'
-        verbose_name_plural = 'Favorites'
+        verbose_name = 'favorite recipe'
+        verbose_name_plural = 'favorite recipes'
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'recipe'],
@@ -129,20 +155,22 @@ class Favorite(models.Model):
 class ShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
+        verbose_name='user',
+        help_text='User who added recipe to shopping cart',
         on_delete=models.CASCADE,
-        related_name='shopping_cart',
-        verbose_name='User'
+        related_name='shopping_cart'
     )
     recipe = models.ForeignKey(
         Recipe,
+        verbose_name='recipe',
+        help_text='Recipe in shopping cart',
         on_delete=models.CASCADE,
-        related_name='in_shopping_carts',
-        verbose_name='Recipe'
+        related_name='in_shopping_carts'
     )
 
     class Meta:
-        verbose_name = 'Shopping cart item'
-        verbose_name_plural = 'Shopping cart items'
+        verbose_name = 'shopping cart item'
+        verbose_name_plural = 'shopping cart items'
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'recipe'],

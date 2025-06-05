@@ -1,7 +1,7 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -26,6 +26,7 @@ class CustomUserViewSet(SubscriptionMixin, UserViewSet):
         queryset: QuerySet of all users
         serializer_class: Default serializer for user operations
     """
+
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
 
@@ -62,16 +63,15 @@ class CustomUserViewSet(SubscriptionMixin, UserViewSet):
                 status=status.HTTP_201_CREATED
             )
 
-        subscription = Subscription.objects.filter(
+        deleted_count = Subscription.objects.filter(
             user=request.user,
             author=author
-        )
-        if not subscription.exists():
+        ).delete()[0]
+        if not deleted_count:
             return Response(
                 {'errors': 'You are not subscribed to this user'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -111,6 +111,5 @@ class CustomUserViewSet(SubscriptionMixin, UserViewSet):
             return Response(serializer.data)
 
         if request.method == 'DELETE':
-            if request.user.avatar:
-                request.user.avatar.delete()
+            request.user.avatar.delete(save=True)
             return Response(status=status.HTTP_204_NO_CONTENT) 

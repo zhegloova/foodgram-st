@@ -1,10 +1,9 @@
+from common.fields import Base64ImageField
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from recipes.models import Recipe
 from rest_framework import serializers
 from users.models import Subscription
-
-from ..fields import Base64ImageField
 
 User = get_user_model()
 
@@ -66,7 +65,7 @@ class SubscriptionSerializer(CustomUserSerializer):
     def get_recipes(self, obj):
         request = self.context.get('request')
         limit = request.query_params.get('recipes_limit')
-        recipes = obj.recipes.all()
+        recipes = obj.recipes
         if limit:
             recipes = recipes[:int(limit)]
         serializer = RecipeMinifiedSerializer(recipes, many=True)

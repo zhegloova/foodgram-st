@@ -1,2 +1,2 @@
-from .recipe import *
-from .user import * 
+from .recipe import IngredientViewSet, RecipeViewSet
+from .user import CustomUserViewSet

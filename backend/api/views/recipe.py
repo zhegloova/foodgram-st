@@ -1,45 +1,47 @@
-import hashlib
-
+from api.filters import IngredientFilter, RecipeFilter
+from api.permissions import IsAuthorOrReadOnly
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
-from recipes.filters import IngredientFilter, RecipeFilter
 from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart
-from recipes.permissions import IsAuthorOrReadOnly
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from ..serializers.recipe import (IngredientSerializer,
+from ..serializers.recipe import (FavoriteCreateSerializer,
+                                  IngredientSerializer,
                                   RecipeCreateUpdateSerializer,
                                   RecipeListSerializer,
-                                  RecipeMinifiedSerializer)
+                                  RecipeMinifiedSerializer,
+                                  ShoppingCartCreateSerializer)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Ingredient viewset. Read-only access for all users.
-    Provides filtered and ordered list of ingredients.
-    """
-    
-    queryset = Ingredient.objects.all().order_by('name')
+    queryset = Ingredient.objects
     serializer_class = IngredientSerializer
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = IngredientFilter
     pagination_class = None
 
+    def get_queryset(self):
+        queryset = Ingredient.objects
+        name = self.request.query_params.get("name")
+        if name:
+            queryset = queryset.filter(name__istartswith=name)
+        return queryset
+
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = (Recipe.objects.select_related('author')
-               .prefetch_related(
-                   'recipe_ingredients__ingredient',
-                   'favorited_by',
-                   'in_shopping_carts'
-               ))
+                .prefetch_related(
+                    'recipe_ingredients__ingredient',
+                    'favorited_by',
+                    'in_shopping_carts'
+                ))
     permission_classes = (IsAuthorOrReadOnly,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
@@ -59,28 +61,30 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def handle_collection(self, request, pk, collection_class, messages):
-        recipe = get_object_or_404(Recipe, id=pk)
-        
+    def handle_collection(self, request, pk, collection_class, serializer_class, messages):
         if request.method == 'POST':
-            if collection_class.objects.filter(user=request.user, recipe=recipe).exists():
-                return Response(
-                    {'errors': messages['exists']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            collection_class.objects.create(user=request.user, recipe=recipe)
-            serializer = RecipeMinifiedSerializer(recipe)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-        if request.method == 'DELETE':
-            obj = collection_class.objects.filter(user=request.user, recipe=recipe)
-            if not obj.exists():
-                return Response(
-                    {'errors': messages['not_found']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            obj.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            recipe = get_object_or_404(Recipe, id=pk)
+            serializer = serializer_class(
+                data={'recipe': recipe.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(
+                RecipeMinifiedSerializer(recipe).data,
+                status=status.HTTP_201_CREATED
+            )
+
+        deleted_count = collection_class.objects.filter(
+            user=request.user,
+            recipe_id=pk
+        ).delete()[0]
+        if not deleted_count:
+            return Response(
+                {'errors': messages['not_found']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=True,
@@ -92,8 +96,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             request,
             pk,
             Favorite,
+            FavoriteCreateSerializer,
             {
-                'exists': 'Recipe is already in favorites',
                 'not_found': 'Recipe is not in favorites'
             }
         )
@@ -108,8 +112,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             request,
             pk,
             ShoppingCart,
+            ShoppingCartCreateSerializer,
             {
-                'exists': 'Recipe is already in shopping cart',
                 'not_found': 'Recipe is not in shopping cart'
             }
         )
@@ -137,7 +141,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ).order_by('recipe__recipe_ingredients__ingredient__name')
 
         shopping_list_text = self.generate_shopping_list(ingredients)
-        
+
         response = HttpResponse(
             shopping_list_text,
             content_type='text/plain'
