@@ -9,12 +9,10 @@ User = get_user_model()
 class Ingredient(models.Model):
     name = models.CharField(
         verbose_name='ingredient name',
-        help_text='Name of the ingredient',
         max_length=128
     )
     measurement_unit = models.CharField(
         verbose_name='measurement unit',
-        help_text='Unit of measurement (e.g., g, ml, piece)',
         max_length=64
     )
 
@@ -30,48 +28,42 @@ class Recipe(models.Model):
     author = models.ForeignKey(
         User,
         verbose_name='recipe author',
-        help_text='User who created the recipe',
         on_delete=models.CASCADE,
         related_name='recipes'
     )
     name = models.CharField(
         verbose_name='recipe name',
-        help_text='Name of the recipe',
         max_length=256
     )
     image = models.ImageField(
         verbose_name='recipe image',
-        help_text='Image of the prepared dish',
         upload_to='recipes/images/'
     )
     text = models.TextField(
-        verbose_name='recipe description',
-        help_text='Recipe preparation instructions'
+        verbose_name='recipe description'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='IngredientInRecipe',
         related_name='recipes',
-        verbose_name='ingredients',
-        help_text='Ingredients used in the recipe'
+        verbose_name='ingredients'
     )
     cooking_time = models.PositiveSmallIntegerField(
         verbose_name='cooking time',
-        help_text='Cooking time in minutes',
+        help_text='in minutes',
         validators=[MinValueValidator(1)]
     )
     pub_date = models.DateTimeField(
         verbose_name='publication date',
-        help_text='Date and time when the recipe was published',
         auto_now_add=True,
         db_index=True
     )
     short_id = models.CharField(
         verbose_name='short ID',
-        help_text='Short identifier for sharing',
+        help_text='Short identifier for sharing links',
         max_length=10,
         unique=True,
-        null=True,
+        default='',
         blank=True,
         db_index=True
     )
@@ -92,19 +84,16 @@ class IngredientInRecipe(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         verbose_name='recipe',
-        help_text='Recipe that uses this ingredient',
         on_delete=models.CASCADE,
         related_name='recipe_ingredients'
     )
     ingredient = models.ForeignKey(
         Ingredient,
         verbose_name='ingredient',
-        help_text='Ingredient used in the recipe',
         on_delete=models.CASCADE
     )
     amount = models.PositiveSmallIntegerField(
         verbose_name='amount',
-        help_text='Amount of ingredient needed',
         validators=[MinValueValidator(1)]
     )
 
@@ -126,14 +115,12 @@ class Favorite(models.Model):
     user = models.ForeignKey(
         User,
         verbose_name='user',
-        help_text='User who favorited the recipe',
         on_delete=models.CASCADE,
         related_name='favorites'
     )
     recipe = models.ForeignKey(
         Recipe,
         verbose_name='recipe',
-        help_text='Favorited recipe',
         on_delete=models.CASCADE,
         related_name='favorited_by'
     )
@@ -156,14 +143,12 @@ class ShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
         verbose_name='user',
-        help_text='User who added recipe to shopping cart',
         on_delete=models.CASCADE,
         related_name='shopping_cart'
     )
     recipe = models.ForeignKey(
         Recipe,
         verbose_name='recipe',
-        help_text='Recipe in shopping cart',
         on_delete=models.CASCADE,
         related_name='in_shopping_carts'
     )

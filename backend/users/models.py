@@ -31,9 +31,8 @@ class User(AbstractUser):
     avatar = models.ImageField(
         verbose_name='Profile picture',
         upload_to='users/',
-        null='',
-        blank=True,
-        help_text='User profile picture'
+        default='',
+        blank=True
     )
 
     USERNAME_FIELD = 'email'
@@ -52,14 +51,12 @@ class Subscription(models.Model):
     user = models.ForeignKey(
         User,
         verbose_name='Subscriber',
-        help_text='User who subscribes',
         on_delete=models.CASCADE,
         related_name='subscriber'
     )
     author = models.ForeignKey(
         User,
         verbose_name='Author',
-        help_text='User being subscribed to',
         on_delete=models.CASCADE,
         related_name='subscribing'
     )

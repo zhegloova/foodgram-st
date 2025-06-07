@@ -46,10 +46,11 @@ class CustomUserSerializer(UserSerializer):
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
-        return Subscription.objects.filter(
+        subscription = Subscription.objects.filter(
             user=user,
             author=obj
-        ).exists()
+        ).first()
+        return bool(subscription)
 
 
 class SubscriptionSerializer(CustomUserSerializer):
@@ -79,17 +80,15 @@ class SubscriptionCreateSerializer(serializers.ModelSerializer):
 
     def validate_author(self, value):
         user = self.context['request'].user
-        
         if user == value:
             raise serializers.ValidationError(
                 'You cannot subscribe to yourself'
             )
-        
-        if Subscription.objects.filter(user=user, author=value).exists():
+        subscription = Subscription.objects.filter(user=user, author=value).first()
+        if subscription:
             raise serializers.ValidationError(
                 'You are already subscribed to this user'
             )
-        
         return value
 
     def create(self, validated_data):

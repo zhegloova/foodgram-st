@@ -56,19 +56,21 @@ class RecipeListSerializer(serializers.ModelSerializer):
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
-        return Favorite.objects.filter(
+        favorite = Favorite.objects.filter(
             user=user,
             recipe=obj
-        ).exists()
+        ).first()
+        return bool(favorite)
 
     def get_is_in_shopping_cart(self, obj):
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
-        return ShoppingCart.objects.filter(
+        cart_item = ShoppingCart.objects.filter(
             user=user,
             recipe=obj
-        ).exists()
+        ).first()
+        return bool(cart_item)
 
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
@@ -107,12 +109,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                     'Ingredient ID is required'
                 )
             
-            if not Ingredient.objects.filter(id=ingredient_id).exists():
+            ingredient = Ingredient.objects.filter(id=ingredient_id).first()
+            if not ingredient:
                 raise serializers.ValidationError(
                     f'Ingredient with id {ingredient_id} does not exist'
                 )
             
-            ingredient = Ingredient.objects.get(id=ingredient_id)
             if ingredient in ingredient_list:
                 raise serializers.ValidationError(
                     'Ingredients must be unique'
@@ -161,7 +163,8 @@ class FavoriteCreateSerializer(serializers.ModelSerializer):
 
     def validate_recipe(self, value):
         user = self.context['request'].user
-        if Favorite.objects.filter(user=user, recipe=value).exists():
+        favorite = Favorite.objects.filter(user=user, recipe=value).first()
+        if favorite:
             raise serializers.ValidationError(
                 'Recipe is already in favorites'
             )
@@ -179,7 +182,8 @@ class ShoppingCartCreateSerializer(serializers.ModelSerializer):
 
     def validate_recipe(self, value):
         user = self.context['request'].user
-        if ShoppingCart.objects.filter(user=user, recipe=value).exists():
+        cart_item = ShoppingCart.objects.filter(user=user, recipe=value).first()
+        if cart_item:
             raise serializers.ValidationError(
                 'Recipe is already in shopping cart'
             )

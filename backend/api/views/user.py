@@ -1,5 +1,6 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status
 from rest_framework.decorators import action
@@ -7,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from users.models import Subscription, User
 
+from ..filters import UserFilter
 from ..mixins import SubscriptionMixin
 from ..serializers.user import (CustomUserSerializer, SetAvatarSerializer,
                                 SubscriptionCreateSerializer,
@@ -29,6 +31,8 @@ class CustomUserViewSet(SubscriptionMixin, UserViewSet):
 
     queryset = User.objects.all()
     serializer_class = CustomUserSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = UserFilter
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
@@ -79,13 +83,11 @@ class CustomUserViewSet(SubscriptionMixin, UserViewSet):
         permission_classes=[IsAuthenticated]
     )
     def subscriptions(self, request):
-        user = request.user
-        subscriptions = User.objects.filter(
-            subscribing__user=user
-        ).annotate(
+        queryset = self.filter_queryset(self.get_queryset())
+        queryset = queryset.filter(subscribing__user=request.user).annotate(
             recipes_count=Count('recipes')
         )
-        page = self.paginate_queryset(subscriptions)
+        page = self.paginate_queryset(queryset)
         serializer = SubscriptionSerializer(
             page,
             many=True,
